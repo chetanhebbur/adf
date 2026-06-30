@@ -1,0 +1,15 @@
+{
+	"name": "mydataing",
+	"properties": {
+		"trustModeClaimForMi": {
+			"value": "Disabled",
+			"editable": true
+		}
+	},
+	"location": "eastus",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "0e250bdd-3411-43fb-a1f1-7e694a325203",
+		"tenantId": "e7731559-cc53-4dc1-a2e5-daa0f8173cf8"
+	}
+}
