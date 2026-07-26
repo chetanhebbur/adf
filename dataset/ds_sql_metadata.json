@@ -1,0 +1,16 @@
+{
+	"name": "ds_sql_metadata",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "ls_sql_metadata",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "AzureSqlTable",
+		"schema": [],
+		"typeProperties": {
+			"schema": "etl",
+			"table": "pipeline_metadata"
+		}
+	}
+}

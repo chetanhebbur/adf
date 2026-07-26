@@ -1,0 +1,488 @@
+{
+	"name": "pl_generic_incremental_load",
+	"properties": {
+		"description": "Generic file-based incremental load with watermark; p_watermark_override enables backfills.",
+		"activities": [
+			{
+				"name": "SP_LogStart",
+				"type": "SqlServerStoredProcedure",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.00:10:00",
+					"retry": 1,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"storedProcedureName": "etl.usp_log_run_start",
+					"storedProcedureParameters": {
+						"pipeline_name": {
+							"value": {
+								"value": "@pipeline().Pipeline",
+								"type": "Expression"
+							},
+							"type": "String"
+						},
+						"pipeline_run_id": {
+							"value": {
+								"value": "@pipeline().RunId",
+								"type": "Expression"
+							},
+							"type": "String"
+						},
+						"source_system": {
+							"value": {
+								"value": "@pipeline().parameters.p_source_system",
+								"type": "Expression"
+							},
+							"type": "String"
+						},
+						"load_type": {
+							"value": "INCREMENTAL",
+							"type": "String"
+						},
+						"watermark_used": {
+							"value": {
+								"value": "@if(empty(pipeline().parameters.p_watermark_override), pipeline().parameters.p_last_watermark, pipeline().parameters.p_watermark_override)",
+								"type": "Expression"
+							},
+							"type": "String"
+						}
+					}
+				},
+				"linkedServiceName": {
+					"referenceName": "ls_sql_metadata",
+					"type": "LinkedServiceReference"
+				}
+			},
+			{
+				"name": "GetMetadata_SourceFiles",
+				"type": "GetMetadata",
+				"dependsOn": [
+					{
+						"activity": "SP_LogStart",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.00:10:00",
+					"retry": 1,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"dataset": {
+						"referenceName": "ds_source_folder",
+						"type": "DatasetReference",
+						"parameters": {
+							"p_folder": {
+								"value": "@pipeline().parameters.p_source_folder",
+								"type": "Expression"
+							}
+						}
+					},
+					"fieldList": [
+						"childItems"
+					],
+					"storeSettings": {
+						"type": "AzureBlobFSReadSettings",
+						"recursive": false,
+						"enablePartitionDiscovery": false
+					},
+					"formatSettings": {
+						"type": "BinaryReadSettings"
+					}
+				}
+			},
+			{
+				"name": "Filter_NewFiles",
+				"type": "Filter",
+				"dependsOn": [
+					{
+						"activity": "GetMetadata_SourceFiles",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('GetMetadata_SourceFiles').output.childItems",
+						"type": "Expression"
+					},
+					"condition": {
+						"value": "@and(equals(item().type, 'File'), greater(item().name, concat(pipeline().parameters.p_file_prefix, replace(if(empty(pipeline().parameters.p_watermark_override), pipeline().parameters.p_last_watermark, pipeline().parameters.p_watermark_override), '-', ''), '.csv')))",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "ForEach_CopyFiles",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "Filter_NewFiles",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('Filter_NewFiles').output.Value",
+						"type": "Expression"
+					},
+					"isSequential": true,
+					"activities": [
+						{
+							"name": "Copy_File",
+							"type": "Copy",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.01:00:00",
+								"retry": 1,
+								"retryIntervalInSeconds": 60,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "DelimitedTextSource",
+									"storeSettings": {
+										"type": "AzureBlobFSReadSettings",
+										"recursive": false,
+										"enablePartitionDiscovery": false
+									},
+									"formatSettings": {
+										"type": "DelimitedTextReadSettings"
+									}
+								},
+								"sink": {
+									"type": "DelimitedTextSink",
+									"storeSettings": {
+										"type": "AzureBlobFSWriteSettings"
+									},
+									"formatSettings": {
+										"type": "DelimitedTextWriteSettings",
+										"quoteAllText": false,
+										"fileExtension": ".csv"
+									}
+								},
+								"enableStaging": false
+							},
+							"inputs": [
+								{
+									"referenceName": "ds_source_csv",
+									"type": "DatasetReference",
+									"parameters": {
+										"p_folder": {
+											"value": "@pipeline().parameters.p_source_folder",
+											"type": "Expression"
+										},
+										"p_file": {
+											"value": "@item().name",
+											"type": "Expression"
+										}
+									}
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "ds_landing_csv",
+									"type": "DatasetReference",
+									"parameters": {
+										"p_container": {
+											"value": "@pipeline().parameters.p_target_container",
+											"type": "Expression"
+										},
+										"p_folder": {
+											"value": "@concat(pipeline().parameters.p_target_path, '/', formatDateTime(utcnow(), 'yyyy/MM/dd'))",
+											"type": "Expression"
+										},
+										"p_file": {
+											"value": "@item().name",
+											"type": "Expression"
+										}
+									}
+								}
+							]
+						},
+						{
+							"name": "Set_TempMax",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "Copy_File",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "v_temp_max",
+								"value": {
+									"value": "@if(greater(item().name, variables('v_max_file')), item().name, variables('v_max_file'))",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "Set_MaxFile",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "Set_TempMax",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "v_max_file",
+								"value": {
+									"value": "@variables('v_temp_max')",
+									"type": "Expression"
+								}
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "If_FilesCopied",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "ForEach_CopyFiles",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@greater(length(activity('Filter_NewFiles').output.Value), 0)",
+						"type": "Expression"
+					},
+					"ifTrueActivities": [
+						{
+							"name": "SP_UpdateWatermark",
+							"type": "SqlServerStoredProcedure",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.00:10:00",
+								"retry": 1,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"storedProcedureName": "etl.usp_update_watermark",
+								"storedProcedureParameters": {
+									"source_system": {
+										"value": {
+											"value": "@pipeline().parameters.p_source_system",
+											"type": "Expression"
+										},
+										"type": "String"
+									},
+									"source_object": {
+										"value": {
+											"value": "@pipeline().parameters.p_source_object",
+											"type": "Expression"
+										},
+										"type": "String"
+									},
+									"new_watermark_value": {
+										"value": {
+											"value": "@concat(substring(variables('v_max_file'), length(pipeline().parameters.p_file_prefix), 4), '-', substring(variables('v_max_file'), add(length(pipeline().parameters.p_file_prefix), 4), 2), '-', substring(variables('v_max_file'), add(length(pipeline().parameters.p_file_prefix), 6), 2))",
+											"type": "Expression"
+										},
+										"type": "String"
+									}
+								}
+							},
+							"linkedServiceName": {
+								"referenceName": "ls_sql_metadata",
+								"type": "LinkedServiceReference"
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "SP_LogEnd_Success",
+				"type": "SqlServerStoredProcedure",
+				"dependsOn": [
+					{
+						"activity": "If_FilesCopied",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.00:10:00",
+					"retry": 1,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"storedProcedureName": "etl.usp_log_run_end",
+					"storedProcedureParameters": {
+						"pipeline_run_id": {
+							"value": {
+								"value": "@pipeline().RunId",
+								"type": "Expression"
+							},
+							"type": "String"
+						},
+						"source_system": {
+							"value": {
+								"value": "@pipeline().parameters.p_source_system",
+								"type": "Expression"
+							},
+							"type": "String"
+						},
+						"status": {
+							"value": "SUCCEEDED",
+							"type": "String"
+						},
+						"rows_copied": {
+							"value": {
+								"value": "@length(activity('Filter_NewFiles').output.Value)",
+								"type": "Expression"
+							},
+							"type": "Int64"
+						},
+						"new_watermark": {
+							"value": {
+								"value": "@variables('v_max_file')",
+								"type": "Expression"
+							},
+							"type": "String"
+						}
+					}
+				},
+				"linkedServiceName": {
+					"referenceName": "ls_sql_metadata",
+					"type": "LinkedServiceReference"
+				}
+			},
+			{
+				"name": "SP_LogEnd_Failure",
+				"type": "SqlServerStoredProcedure",
+				"dependsOn": [
+					{
+						"activity": "ForEach_CopyFiles",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.00:10:00",
+					"retry": 1,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"storedProcedureName": "etl.usp_log_run_end",
+					"storedProcedureParameters": {
+						"pipeline_run_id": {
+							"value": {
+								"value": "@pipeline().RunId",
+								"type": "Expression"
+							},
+							"type": "String"
+						},
+						"source_system": {
+							"value": {
+								"value": "@pipeline().parameters.p_source_system",
+								"type": "Expression"
+							},
+							"type": "String"
+						},
+						"status": {
+							"value": "FAILED",
+							"type": "String"
+						},
+						"error_message": {
+							"value": "One or more file copies failed - see ADF monitoring",
+							"type": "String"
+						}
+					}
+				},
+				"linkedServiceName": {
+					"referenceName": "ls_sql_metadata",
+					"type": "LinkedServiceReference"
+				}
+			}
+		],
+		"parameters": {
+			"p_source_system": {
+				"type": "string"
+			},
+			"p_source_object": {
+				"type": "string"
+			},
+			"p_source_folder": {
+				"type": "string"
+			},
+			"p_file_prefix": {
+				"type": "string",
+				"defaultValue": "prices_"
+			},
+			"p_last_watermark": {
+				"type": "string"
+			},
+			"p_watermark_override": {
+				"type": "string"
+			},
+			"p_target_container": {
+				"type": "string",
+				"defaultValue": "landing"
+			},
+			"p_target_path": {
+				"type": "string"
+			}
+		},
+		"variables": {
+			"v_max_file": {
+				"type": "String"
+			},
+			"v_temp_max": {
+				"type": "String"
+			}
+		},
+		"annotations": [
+			"metadata-driven",
+			"incremental-load"
+		]
+	}
+}

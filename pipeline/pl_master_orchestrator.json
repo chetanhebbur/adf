@@ -1,0 +1,162 @@
+{
+	"name": "pl_master_orchestrator",
+	"properties": {
+		"description": "Metadata-driven orchestrator: reads etl.pipeline_metadata and dispatches each active source to the FULL or INCREMENTAL generic pipeline.",
+		"activities": [
+			{
+				"name": "Lookup_Metadata",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.00:10:00",
+					"retry": 1,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderQuery": "SELECT source_system, source_object, source_folder, load_type, watermark_column, ISNULL(last_watermark_value, '1900-01-01') AS last_watermark_value, target_container, target_path, file_format, primary_key_columns FROM etl.pipeline_metadata WHERE is_active = 1",
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "ds_sql_metadata",
+						"type": "DatasetReference"
+					},
+					"firstRowOnly": false
+				}
+			},
+			{
+				"name": "ForEach_Sources",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "Lookup_Metadata",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('Lookup_Metadata').output.value",
+						"type": "Expression"
+					},
+					"isSequential": false,
+					"batchCount": 4,
+					"activities": [
+						{
+							"name": "If_LoadType",
+							"type": "IfCondition",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"expression": {
+									"value": "@equals(item().load_type, 'FULL')",
+									"type": "Expression"
+								},
+								"ifFalseActivities": [
+									{
+										"name": "Exec_IncrementalLoad",
+										"type": "ExecutePipeline",
+										"dependsOn": [],
+										"policy": {
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"waitOnCompletion": true,
+											"parameters": {
+												"p_source_system": {
+													"value": "@item().source_system",
+													"type": "Expression"
+												},
+												"p_source_object": {
+													"value": "@item().source_object",
+													"type": "Expression"
+												},
+												"p_source_folder": {
+													"value": "@item().source_folder",
+													"type": "Expression"
+												},
+												"p_file_prefix": {
+													"value": "@replace(item().source_object, '*.csv', '')",
+													"type": "Expression"
+												},
+												"p_last_watermark": {
+													"value": "@item().last_watermark_value",
+													"type": "Expression"
+												},
+												"p_watermark_override": {
+													"value": "@pipeline().parameters.p_backfill_watermark",
+													"type": "Expression"
+												},
+												"p_target_container": {
+													"value": "@item().target_container",
+													"type": "Expression"
+												},
+												"p_target_path": {
+													"value": "@item().target_path",
+													"type": "Expression"
+												}
+											}
+										}
+									}
+								],
+								"ifTrueActivities": [
+									{
+										"name": "Exec_FullLoad",
+										"type": "ExecutePipeline",
+										"dependsOn": [],
+										"policy": {
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"waitOnCompletion": true,
+											"parameters": {
+												"p_source_system": {
+													"value": "@item().source_system",
+													"type": "Expression"
+												},
+												"p_source_object": {
+													"value": "@item().source_object",
+													"type": "Expression"
+												},
+												"p_source_folder": {
+													"value": "@item().source_folder",
+													"type": "Expression"
+												},
+												"p_target_container": {
+													"value": "@item().target_container",
+													"type": "Expression"
+												},
+												"p_target_path": {
+													"value": "@item().target_path",
+													"type": "Expression"
+												}
+											}
+										}
+									}
+								]
+							}
+						}
+					]
+				}
+			}
+		],
+		"parameters": {
+			"p_backfill_watermark": {
+				"type": "string"
+			}
+		},
+		"annotations": [
+			"metadata-driven",
+			"orchestrator"
+		]
+	}
+}
