@@ -92,7 +92,15 @@
 							"fileExtension": ".csv"
 						}
 					},
-					"enableStaging": false
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"typeConversion": true,
+						"typeConversionSettings": {
+							"allowDataTruncation": true,
+							"treatBooleanAsNumber": false
+						}
+					}
 				},
 				"inputs": [
 					{
@@ -173,7 +181,7 @@
 						},
 						"rows_copied": {
 							"value": {
-								"value": "@activity('Copy_FullSnapshot').output.rowsCopied",
+								"value": "@activity('Copy_FullSnapshot').output.filesWritten",
 								"type": "Expression"
 							},
 							"type": "Int64"
