@@ -69,6 +69,10 @@
 										},
 										"userProperties": [],
 										"typeProperties": {
+											"pipeline": {
+												"referenceName": "pl_generic_incremental_load",
+												"type": "PipelineReference"
+											},
 											"waitOnCompletion": true,
 											"parameters": {
 												"p_source_system": {
@@ -117,6 +121,10 @@
 										},
 										"userProperties": [],
 										"typeProperties": {
+											"pipeline": {
+												"referenceName": "pl_generic_full_load",
+												"type": "PipelineReference"
+											},
 											"waitOnCompletion": true,
 											"parameters": {
 												"p_source_system": {
