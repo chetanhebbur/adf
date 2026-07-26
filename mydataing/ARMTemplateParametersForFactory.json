@@ -1,0 +1,57 @@
+{
+	"$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"value": "mydataing"
+		},
+		"AmazonS3_pl_secretAccessKey": {
+			"value": ""
+		},
+		"PostgreSql_ls_password": {
+			"value": ""
+		},
+		"SqlServer_ls_password": {
+			"value": ""
+		},
+		"adls_ls_accountKey": {
+			"value": ""
+		},
+		"ls_sql_metadata_password": {
+			"value": ""
+		},
+		"AmazonS3_pl_properties_typeProperties_accessKeyId": {
+			"value": "AKIAYFH5XOUZJ7YCG4GV"
+		},
+		"PostgreSql_ls_properties_typeProperties_server": {
+			"value": "localhost "
+		},
+		"PostgreSql_ls_properties_typeProperties_database": {
+			"value": "order"
+		},
+		"PostgreSql_ls_properties_typeProperties_username": {
+			"value": "postgres"
+		},
+		"SqlServer_ls_properties_typeProperties_server": {
+			"value": "CHETHAN\\SQLEXPRESS"
+		},
+		"SqlServer_ls_properties_typeProperties_database": {
+			"value": "e_commerce"
+		},
+		"SqlServer_ls_properties_typeProperties_userName": {
+			"value": "SA"
+		},
+		"adls_ls_properties_typeProperties_url": {
+			"value": "https://storageformydata.dfs.core.windows.net/"
+		},
+		"ls_sql_metadata_properties_typeProperties_server": {
+			"value": "ibsql-dataeng-ch3.database.windows.net"
+		},
+		"ls_sql_metadata_properties_typeProperties_database": {
+			"value": "metadatadb"
+		},
+		"ls_sql_metadata_properties_typeProperties_userName": {
+			"value": "sqladmin"
+		}
+	}
+}

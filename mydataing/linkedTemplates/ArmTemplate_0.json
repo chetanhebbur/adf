@@ -1,0 +1,1312 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory name",
+			"defaultValue": "mydataing"
+		},
+		"AmazonS3_pl_secretAccessKey": {
+			"type": "secureString",
+			"metadata": "Secure string for 'secretAccessKey' of 'AmazonS3_pl'"
+		},
+		"adls_ls_accountKey": {
+			"type": "secureString",
+			"metadata": "Secure string for 'accountKey' of 'adls_ls'"
+		},
+		"ls_sql_metadata_password": {
+			"type": "secureString",
+			"metadata": "Secure string for 'password' of 'ls_sql_metadata'"
+		},
+		"PostgreSql_ls_password": {
+			"type": "secureString",
+			"metadata": "Secure string for 'password' of 'PostgreSql_ls'"
+		},
+		"SqlServer_ls_password": {
+			"type": "secureString",
+			"metadata": "Secure string for 'password' of 'SqlServer_ls'"
+		},
+		"AmazonS3_pl_properties_typeProperties_accessKeyId": {
+			"type": "string",
+			"defaultValue": "AKIAYFH5XOUZJ7YCG4GV"
+		},
+		"adls_ls_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "https://storageformydata.dfs.core.windows.net/"
+		},
+		"ls_sql_metadata_properties_typeProperties_server": {
+			"type": "string",
+			"defaultValue": "ibsql-dataeng-ch3.database.windows.net"
+		},
+		"ls_sql_metadata_properties_typeProperties_database": {
+			"type": "string",
+			"defaultValue": "metadatadb"
+		},
+		"ls_sql_metadata_properties_typeProperties_userName": {
+			"type": "string",
+			"defaultValue": "sqladmin"
+		},
+		"PostgreSql_ls_properties_typeProperties_server": {
+			"type": "string",
+			"defaultValue": "localhost "
+		},
+		"PostgreSql_ls_properties_typeProperties_database": {
+			"type": "string",
+			"defaultValue": "order"
+		},
+		"PostgreSql_ls_properties_typeProperties_username": {
+			"type": "string",
+			"defaultValue": "postgres"
+		},
+		"SqlServer_ls_properties_typeProperties_server": {
+			"type": "string",
+			"defaultValue": "CHETHAN\\SQLEXPRESS"
+		},
+		"SqlServer_ls_properties_typeProperties_database": {
+			"type": "string",
+			"defaultValue": "e_commerce"
+		},
+		"SqlServer_ls_properties_typeProperties_userName": {
+			"type": "string",
+			"defaultValue": "SA"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/AmazonS3_pl')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AmazonS3",
+				"typeProperties": {
+					"serviceUrl": "https://s3.amazonaws.com",
+					"accessKeyId": "[parameters('AmazonS3_pl_properties_typeProperties_accessKeyId')]",
+					"secretAccessKey": {
+						"type": "SecureString",
+						"value": "[parameters('AmazonS3_pl_secretAccessKey')]"
+					},
+					"authenticationType": "AccessKey"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/adls_ls')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureBlobFS",
+				"typeProperties": {
+					"url": "[parameters('adls_ls_properties_typeProperties_url')]",
+					"accountKey": {
+						"type": "SecureString",
+						"value": "[parameters('adls_ls_accountKey')]"
+					}
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ls_sql_metadata')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureSqlDatabase",
+				"typeProperties": {
+					"server": "[parameters('ls_sql_metadata_properties_typeProperties_server')]",
+					"database": "[parameters('ls_sql_metadata_properties_typeProperties_database')]",
+					"encrypt": "mandatory",
+					"trustServerCertificate": false,
+					"authenticationType": "SQL",
+					"userName": "[parameters('ls_sql_metadata_properties_typeProperties_userName')]",
+					"password": {
+						"type": "SecureString",
+						"value": "[parameters('ls_sql_metadata_password')]"
+					}
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/onpriminr')]",
+			"type": "Microsoft.DataFactory/factories/integrationRuntimes",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "SelfHosted",
+				"typeProperties": {}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ds_source_csv')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "adls_ls",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"p_folder": {
+						"type": "string"
+					},
+					"p_file": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileName": {
+							"value": "@dataset().p_file",
+							"type": "Expression"
+						},
+						"folderPath": {
+							"value": "@dataset().p_folder",
+							"type": "Expression"
+						},
+						"fileSystem": "source"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\"",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/adls_ls')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ds_source_folder')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "adls_ls",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"p_folder": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "Binary",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"folderPath": {
+							"value": "@dataset().p_folder",
+							"type": "Expression"
+						},
+						"fileSystem": "source"
+					}
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/adls_ls')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ds_sql_metadata')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_sql_metadata",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [],
+				"typeProperties": {
+					"schema": "etl",
+					"table": "pipeline_metadata"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_sql_metadata')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/PostgreSql_ls')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "PostgreSqlV2",
+				"typeProperties": {
+					"server": "[parameters('PostgreSql_ls_properties_typeProperties_server')]",
+					"port": 5432,
+					"database": "[parameters('PostgreSql_ls_properties_typeProperties_database')]",
+					"username": "[parameters('PostgreSql_ls_properties_typeProperties_username')]",
+					"password": {
+						"type": "SecureString",
+						"value": "[parameters('PostgreSql_ls_password')]"
+					},
+					"sslMode": 2,
+					"authenticationType": "Basic"
+				},
+				"connectVia": {
+					"referenceName": "onpriminr",
+					"type": "IntegrationRuntimeReference"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/integrationRuntimes/onpriminr')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/SqlServer_ls')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "SqlServer",
+				"typeProperties": {
+					"server": "[parameters('SqlServer_ls_properties_typeProperties_server')]",
+					"database": "[parameters('SqlServer_ls_properties_typeProperties_database')]",
+					"encrypt": "mandatory",
+					"trustServerCertificate": true,
+					"authenticationType": "SQL",
+					"userName": "[parameters('SqlServer_ls_properties_typeProperties_userName')]",
+					"password": {
+						"type": "SecureString",
+						"value": "[parameters('SqlServer_ls_password')]"
+					}
+				},
+				"connectVia": {
+					"referenceName": "onpriminr",
+					"type": "IntegrationRuntimeReference"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/integrationRuntimes/onpriminr')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ds_landing_csv')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "adls_ls",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"p_container": {
+						"type": "string"
+					},
+					"p_folder": {
+						"type": "string"
+					},
+					"p_file": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileName": {
+							"value": "@dataset().p_file",
+							"type": "Expression"
+						},
+						"folderPath": {
+							"value": "@dataset().p_folder",
+							"type": "Expression"
+						},
+						"fileSystem": {
+							"value": "@dataset().p_container",
+							"type": "Expression"
+						}
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\"",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/adls_ls')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/pl_generic_incremental_load')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description": "Generic file-based incremental load with watermark; p_watermark_override enables backfills.",
+				"activities": [
+					{
+						"name": "SP_LogStart",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.00:10:00",
+							"retry": 1,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "etl.usp_log_run_start",
+							"storedProcedureParameters": {
+								"pipeline_name": {
+									"value": {
+										"value": "@pipeline().Pipeline",
+										"type": "Expression"
+									},
+									"type": "String"
+								},
+								"pipeline_run_id": {
+									"value": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"type": "String"
+								},
+								"source_system": {
+									"value": {
+										"value": "@pipeline().parameters.p_source_system",
+										"type": "Expression"
+									},
+									"type": "String"
+								},
+								"load_type": {
+									"value": "INCREMENTAL",
+									"type": "String"
+								},
+								"watermark_used": {
+									"value": {
+										"value": "@if(empty(pipeline().parameters.p_watermark_override), pipeline().parameters.p_last_watermark, pipeline().parameters.p_watermark_override)",
+										"type": "Expression"
+									},
+									"type": "String"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "ls_sql_metadata",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "GetMetadata_SourceFiles",
+						"type": "GetMetadata",
+						"dependsOn": [
+							{
+								"activity": "SP_LogStart",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.00:10:00",
+							"retry": 1,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataset": {
+								"referenceName": "ds_source_folder",
+								"type": "DatasetReference",
+								"parameters": {
+									"p_folder": {
+										"value": "@pipeline().parameters.p_source_folder",
+										"type": "Expression"
+									}
+								}
+							},
+							"fieldList": [
+								"childItems"
+							],
+							"storeSettings": {
+								"type": "AzureBlobFSReadSettings",
+								"recursive": false,
+								"enablePartitionDiscovery": false
+							},
+							"formatSettings": {
+								"type": "BinaryReadSettings"
+							}
+						}
+					},
+					{
+						"name": "Filter_NewFiles",
+						"type": "Filter",
+						"dependsOn": [
+							{
+								"activity": "GetMetadata_SourceFiles",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('GetMetadata_SourceFiles').output.childItems",
+								"type": "Expression"
+							},
+							"condition": {
+								"value": "@and(equals(item().type, 'File'), greater(item().name, concat(pipeline().parameters.p_file_prefix, replace(if(empty(pipeline().parameters.p_watermark_override), pipeline().parameters.p_last_watermark, pipeline().parameters.p_watermark_override), '-', ''), '.csv')))",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "ForEach_CopyFiles",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "Filter_NewFiles",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('Filter_NewFiles').output.Value",
+								"type": "Expression"
+							},
+							"isSequential": true,
+							"activities": [
+								{
+									"name": "Copy_File",
+									"type": "Copy",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "0.01:00:00",
+										"retry": 1,
+										"retryIntervalInSeconds": 60,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "DelimitedTextSource",
+											"storeSettings": {
+												"type": "AzureBlobFSReadSettings",
+												"recursive": false,
+												"enablePartitionDiscovery": false
+											},
+											"formatSettings": {
+												"type": "DelimitedTextReadSettings"
+											}
+										},
+										"sink": {
+											"type": "DelimitedTextSink",
+											"storeSettings": {
+												"type": "AzureBlobFSWriteSettings"
+											},
+											"formatSettings": {
+												"type": "DelimitedTextWriteSettings",
+												"quoteAllText": true,
+												"fileExtension": ".csv"
+											}
+										},
+										"enableStaging": false
+									},
+									"inputs": [
+										{
+											"referenceName": "ds_source_csv",
+											"type": "DatasetReference",
+											"parameters": {
+												"p_folder": {
+													"value": "@pipeline().parameters.p_source_folder",
+													"type": "Expression"
+												},
+												"p_file": {
+													"value": "@item().name",
+													"type": "Expression"
+												}
+											}
+										}
+									],
+									"outputs": [
+										{
+											"referenceName": "ds_landing_csv",
+											"type": "DatasetReference",
+											"parameters": {
+												"p_container": {
+													"value": "@pipeline().parameters.p_target_container",
+													"type": "Expression"
+												},
+												"p_folder": {
+													"value": "@concat(pipeline().parameters.p_target_path, '/', formatDateTime(utcnow(), 'yyyy/MM/dd'))",
+													"type": "Expression"
+												},
+												"p_file": {
+													"value": "@item().name",
+													"type": "Expression"
+												}
+											}
+										}
+									]
+								},
+								{
+									"name": "Set_TempMax",
+									"type": "SetVariable",
+									"dependsOn": [
+										{
+											"activity": "Copy_File",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"variableName": "v_temp_max",
+										"value": {
+											"value": "@if(greater(item().name, variables('v_max_file')), item().name, variables('v_max_file'))",
+											"type": "Expression"
+										}
+									}
+								},
+								{
+									"name": "Set_MaxFile",
+									"type": "SetVariable",
+									"dependsOn": [
+										{
+											"activity": "Set_TempMax",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"variableName": "v_max_file",
+										"value": {
+											"value": "@variables('v_temp_max')",
+											"type": "Expression"
+										}
+									}
+								}
+							]
+						}
+					},
+					{
+						"name": "If_FilesCopied",
+						"type": "IfCondition",
+						"dependsOn": [
+							{
+								"activity": "ForEach_CopyFiles",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"expression": {
+								"value": "@greater(length(activity('Filter_NewFiles').output.Value), 0)",
+								"type": "Expression"
+							},
+							"ifTrueActivities": [
+								{
+									"name": "SP_UpdateWatermark",
+									"type": "SqlServerStoredProcedure",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "0.00:10:00",
+										"retry": 1,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"storedProcedureName": "etl.usp_update_watermark",
+										"storedProcedureParameters": {
+											"source_system": {
+												"value": {
+													"value": "@pipeline().parameters.p_source_system",
+													"type": "Expression"
+												},
+												"type": "String"
+											},
+											"source_object": {
+												"value": {
+													"value": "@pipeline().parameters.p_source_object",
+													"type": "Expression"
+												},
+												"type": "String"
+											},
+											"new_watermark_value": {
+												"value": {
+													"value": "@concat(substring(variables('v_max_file'), length(pipeline().parameters.p_file_prefix), 4), '-', substring(variables('v_max_file'), add(length(pipeline().parameters.p_file_prefix), 4), 2), '-', substring(variables('v_max_file'), add(length(pipeline().parameters.p_file_prefix), 6), 2))",
+													"type": "Expression"
+												},
+												"type": "String"
+											}
+										}
+									},
+									"linkedServiceName": {
+										"referenceName": "ls_sql_metadata",
+										"type": "LinkedServiceReference"
+									}
+								}
+							]
+						}
+					},
+					{
+						"name": "SP_LogEnd_Success",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "If_FilesCopied",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.00:10:00",
+							"retry": 1,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "etl.usp_log_run_end",
+							"storedProcedureParameters": {
+								"pipeline_run_id": {
+									"value": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"type": "String"
+								},
+								"source_system": {
+									"value": {
+										"value": "@pipeline().parameters.p_source_system",
+										"type": "Expression"
+									},
+									"type": "String"
+								},
+								"status": {
+									"value": "SUCCEEDED",
+									"type": "String"
+								},
+								"rows_copied": {
+									"value": {
+										"value": "@length(activity('Filter_NewFiles').output.Value)",
+										"type": "Expression"
+									},
+									"type": "Int64"
+								},
+								"new_watermark": {
+									"value": {
+										"value": "@variables('v_max_file')",
+										"type": "Expression"
+									},
+									"type": "String"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "ls_sql_metadata",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "SP_LogEnd_Failure",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "ForEach_CopyFiles",
+								"dependencyConditions": [
+									"Failed"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.00:10:00",
+							"retry": 1,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "etl.usp_log_run_end",
+							"storedProcedureParameters": {
+								"pipeline_run_id": {
+									"value": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"type": "String"
+								},
+								"source_system": {
+									"value": {
+										"value": "@pipeline().parameters.p_source_system",
+										"type": "Expression"
+									},
+									"type": "String"
+								},
+								"status": {
+									"value": "FAILED",
+									"type": "String"
+								},
+								"error_message": {
+									"value": "One or more file copies failed - see ADF monitoring",
+									"type": "String"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "ls_sql_metadata",
+							"type": "LinkedServiceReference"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"p_source_system": {
+						"type": "string"
+					},
+					"p_source_object": {
+						"type": "string"
+					},
+					"p_source_folder": {
+						"type": "string"
+					},
+					"p_file_prefix": {
+						"type": "string",
+						"defaultValue": "prices_"
+					},
+					"p_last_watermark": {
+						"type": "string"
+					},
+					"p_watermark_override": {
+						"type": "string"
+					},
+					"p_target_container": {
+						"type": "string",
+						"defaultValue": "landing"
+					},
+					"p_target_path": {
+						"type": "string"
+					}
+				},
+				"variables": {
+					"v_max_file": {
+						"type": "String"
+					},
+					"v_temp_max": {
+						"type": "String"
+					}
+				},
+				"annotations": [
+					"metadata-driven",
+					"incremental-load"
+				]
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_sql_metadata')]",
+				"[concat(variables('factoryId'), '/datasets/ds_source_folder')]",
+				"[concat(variables('factoryId'), '/datasets/ds_source_csv')]",
+				"[concat(variables('factoryId'), '/datasets/ds_landing_csv')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/pl_generic_full_load')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description": "Generic full-snapshot load: copies the entire source file to a date-partitioned landing path.",
+				"activities": [
+					{
+						"name": "SP_LogStart",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.00:10:00",
+							"retry": 1,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "etl.usp_log_run_start",
+							"storedProcedureParameters": {
+								"pipeline_name": {
+									"value": {
+										"value": "@pipeline().Pipeline",
+										"type": "Expression"
+									},
+									"type": "String"
+								},
+								"pipeline_run_id": {
+									"value": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"type": "String"
+								},
+								"source_system": {
+									"value": {
+										"value": "@pipeline().parameters.p_source_system",
+										"type": "Expression"
+									},
+									"type": "String"
+								},
+								"load_type": {
+									"value": "FULL",
+									"type": "String"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "ls_sql_metadata",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "Copy_FullSnapshot",
+						"type": "Copy",
+						"dependsOn": [
+							{
+								"activity": "SP_LogStart",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.01:00:00",
+							"retry": 1,
+							"retryIntervalInSeconds": 60,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "DelimitedTextSource",
+								"storeSettings": {
+									"type": "AzureBlobFSReadSettings",
+									"recursive": false,
+									"enablePartitionDiscovery": false
+								},
+								"formatSettings": {
+									"type": "DelimitedTextReadSettings"
+								}
+							},
+							"sink": {
+								"type": "DelimitedTextSink",
+								"storeSettings": {
+									"type": "AzureBlobFSWriteSettings"
+								},
+								"formatSettings": {
+									"type": "DelimitedTextWriteSettings",
+									"quoteAllText": true,
+									"fileExtension": ".csv"
+								}
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
+								}
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "ds_source_csv",
+								"type": "DatasetReference",
+								"parameters": {
+									"p_folder": {
+										"value": "@pipeline().parameters.p_source_folder",
+										"type": "Expression"
+									},
+									"p_file": {
+										"value": "@pipeline().parameters.p_source_object",
+										"type": "Expression"
+									}
+								}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "ds_landing_csv",
+								"type": "DatasetReference",
+								"parameters": {
+									"p_container": {
+										"value": "@pipeline().parameters.p_target_container",
+										"type": "Expression"
+									},
+									"p_folder": {
+										"value": "@concat(pipeline().parameters.p_target_path, '/', formatDateTime(utcnow(), 'yyyy/MM/dd'))",
+										"type": "Expression"
+									},
+									"p_file": {
+										"value": "@pipeline().parameters.p_source_object",
+										"type": "Expression"
+									}
+								}
+							}
+						]
+					},
+					{
+						"name": "SP_LogEnd_Success",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "Copy_FullSnapshot",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.00:10:00",
+							"retry": 1,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "etl.usp_log_run_end",
+							"storedProcedureParameters": {
+								"pipeline_run_id": {
+									"value": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"type": "String"
+								},
+								"source_system": {
+									"value": {
+										"value": "@pipeline().parameters.p_source_system",
+										"type": "Expression"
+									},
+									"type": "String"
+								},
+								"status": {
+									"value": "SUCCEEDED",
+									"type": "String"
+								},
+								"rows_copied": {
+									"value": {
+										"value": "@activity('Copy_FullSnapshot').output.filesWritten",
+										"type": "Expression"
+									},
+									"type": "Int64"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "ls_sql_metadata",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "SP_LogEnd_Failure",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "Copy_FullSnapshot",
+								"dependencyConditions": [
+									"Failed"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.00:10:00",
+							"retry": 1,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "etl.usp_log_run_end",
+							"storedProcedureParameters": {
+								"pipeline_run_id": {
+									"value": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"type": "String"
+								},
+								"source_system": {
+									"value": {
+										"value": "@pipeline().parameters.p_source_system",
+										"type": "Expression"
+									},
+									"type": "String"
+								},
+								"status": {
+									"value": "FAILED",
+									"type": "String"
+								},
+								"error_message": {
+									"value": {
+										"value": "@string(activity('Copy_FullSnapshot').Error.message)",
+										"type": "Expression"
+									},
+									"type": "String"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "ls_sql_metadata",
+							"type": "LinkedServiceReference"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"p_source_system": {
+						"type": "string"
+					},
+					"p_source_object": {
+						"type": "string"
+					},
+					"p_source_folder": {
+						"type": "string"
+					},
+					"p_target_container": {
+						"type": "string",
+						"defaultValue": "landing"
+					},
+					"p_target_path": {
+						"type": "string"
+					}
+				},
+				"annotations": [
+					"metadata-driven",
+					"full-load"
+				]
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_sql_metadata')]",
+				"[concat(variables('factoryId'), '/datasets/ds_source_csv')]",
+				"[concat(variables('factoryId'), '/datasets/ds_landing_csv')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/pl_master_orchestrator')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description": "Metadata-driven orchestrator: reads etl.pipeline_metadata and dispatches each active source to the FULL or INCREMENTAL generic pipeline.",
+				"activities": [
+					{
+						"name": "Lookup_Metadata",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.00:10:00",
+							"retry": 1,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": "SELECT source_system, source_object, source_folder, load_type, watermark_column, ISNULL(last_watermark_value, '1900-01-01') AS last_watermark_value, target_container, target_path, file_format, primary_key_columns FROM etl.pipeline_metadata WHERE is_active = 1",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "ds_sql_metadata",
+								"type": "DatasetReference",
+								"parameters": {}
+							},
+							"firstRowOnly": false
+						}
+					},
+					{
+						"name": "ForEach_Sources",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "Lookup_Metadata",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('Lookup_Metadata').output.value",
+								"type": "Expression"
+							},
+							"isSequential": false,
+							"batchCount": 4,
+							"activities": [
+								{
+									"name": "If_LoadType",
+									"type": "IfCondition",
+									"dependsOn": [],
+									"userProperties": [],
+									"typeProperties": {
+										"expression": {
+											"value": "@equals(item().load_type, 'FULL')",
+											"type": "Expression"
+										},
+										"ifFalseActivities": [
+											{
+												"name": "Exec_IncrementalLoad",
+												"type": "ExecutePipeline",
+												"dependsOn": [],
+												"policy": {
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"pipeline": {
+														"referenceName": "pl_generic_incremental_load",
+														"type": "PipelineReference"
+													},
+													"waitOnCompletion": true,
+													"parameters": {
+														"p_source_system": {
+															"value": "@item().source_system",
+															"type": "Expression"
+														},
+														"p_source_object": {
+															"value": "@item().source_object",
+															"type": "Expression"
+														},
+														"p_source_folder": {
+															"value": "@item().source_folder",
+															"type": "Expression"
+														},
+														"p_file_prefix": {
+															"value": "@replace(item().source_object, '*.csv', '')",
+															"type": "Expression"
+														},
+														"p_last_watermark": {
+															"value": "@item().last_watermark_value",
+															"type": "Expression"
+														},
+														"p_watermark_override": {
+															"value": "@pipeline().parameters.p_backfill_watermark",
+															"type": "Expression"
+														},
+														"p_target_container": {
+															"value": "@item().target_container",
+															"type": "Expression"
+														},
+														"p_target_path": {
+															"value": "@item().target_path",
+															"type": "Expression"
+														}
+													}
+												}
+											}
+										],
+										"ifTrueActivities": [
+											{
+												"name": "Exec_FullLoad",
+												"type": "ExecutePipeline",
+												"dependsOn": [],
+												"policy": {
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"pipeline": {
+														"referenceName": "pl_generic_full_load",
+														"type": "PipelineReference"
+													},
+													"waitOnCompletion": true,
+													"parameters": {
+														"p_source_system": {
+															"value": "@item().source_system",
+															"type": "Expression"
+														},
+														"p_source_object": {
+															"value": "@item().source_object",
+															"type": "Expression"
+														},
+														"p_source_folder": {
+															"value": "@item().source_folder",
+															"type": "Expression"
+														},
+														"p_target_container": {
+															"value": "@item().target_container",
+															"type": "Expression"
+														},
+														"p_target_path": {
+															"value": "@item().target_path",
+															"type": "Expression"
+														}
+													}
+												}
+											}
+										]
+									}
+								}
+							]
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"p_backfill_watermark": {
+						"type": "string"
+					}
+				},
+				"annotations": [
+					"metadata-driven",
+					"orchestrator"
+				]
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/ds_sql_metadata')]",
+				"[concat(variables('factoryId'), '/pipelines/pl_generic_incremental_load')]",
+				"[concat(variables('factoryId'), '/pipelines/pl_generic_full_load')]"
+			]
+		}
+	]
+}
